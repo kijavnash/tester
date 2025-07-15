@@ -29,14 +29,19 @@
 
 package org.firstinspires.ftc.teamcode;
 
+import edu.wpi.first.networktables.NetworkTable;
+import edu.wpi.first.networktables.NetworkTableEntry;
+import edu.wpi.first.networktables.NetworkTableInstance;
 import com.qualcomm.hardware.limelightvision.LLResult;
 import com.qualcomm.hardware.limelightvision.Limelight3A;
 import com.qualcomm.robotcore.eventloop.opmode.OpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.DcMotor;
+import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 import org.firstinspires.ftc.robotcore.external.hardware.camera.WebcamName;
 import org.firstinspires.ftc.robotcore.external.navigation.Pose3D;
@@ -61,7 +66,7 @@ import com.acmerobotics.dashboard.FtcDashboard;
 
 @TeleOp(name="Basic: Iterative OpMode", group="Iterative OpMode")
 //@Disabled
-public class vision_strafe extends OpMode
+public class vision_strafe2 extends OpMode
 {
     // Declare OpMode members.
     private ElapsedTime runtime = new ElapsedTime();
@@ -70,10 +75,10 @@ public class vision_strafe extends OpMode
     private DcMotor backRight = null;
     private DcMotor backLeft = null;
     public int timer = 0;
-    public int averageTA = 0;
+    public double averageTA = 0;
 
-    public static int[] addX(int n, int arr[], int x) {
-        int newarr[] = new int[n + 1];
+    public static double[] addX(int n, double arr[], double x) {
+        double newarr[] = new double[n + 1];
         for (int i = 0; i < n; i++) {
             newarr[i] = arr[i];
         }
@@ -82,7 +87,7 @@ public class vision_strafe extends OpMode
 
         return newarr;
     }
-    public int[] results = new int[1];
+    public double[] results = new double[1];
     /*
      * Code to run ONCE when the driver hits INIT
      */
@@ -141,10 +146,10 @@ public class vision_strafe extends OpMode
     private Limelight3A limelight;
     @Override
     public void loop() {
-        FtcDashboard dashboard = FtcDashboard.getInstance();
+        /*FtcDashboard dashboard = FtcDashboard.getInstance();
         int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         OpenCvWebcam camera = OpenCvCameraFactory.getInstance().createWebcam(hardwareMap.get(WebcamName.class, "Webcam 1"), cameraMonitorViewId);
-        FtcDashboard.getInstance().startCameraStream(camera, 0);
+        FtcDashboard.getInstance().startCameraStream(camera, 0);*/
         // TIMER is here to sample average of data samples from the last 5 ticks (to eliminate noise potentially)
         timer += 1;
         // Setup a variable for each drive wheel to save power level for telemetry
@@ -160,12 +165,13 @@ public class vision_strafe extends OpMode
         double strafe = 0;
 
         LLResult result = limelight.getLatestResult();
+        NetworkTableInstance.getDefault().getTable("limelight").getEntry("<variablename>").getDouble(0);
         //telemetry.addData("result", result);
         if (result != null) {
             if (result.isValid()) {
-                telemetry.addData("valid", "true");
+                //telemetry.addData("valid", "true");
                 Pose3D botpose = result.getBotpose();
-                turn = result.getTx() / 20;
+                turn = result.getTx() / 27;
                 /*if (result.getTy() > -2) {
                     if (result.getTy() < -2) {
                         telemetry.addData("what", "the hell is even that");
@@ -180,7 +186,7 @@ public class vision_strafe extends OpMode
                 }*/
                 //if (drive < 0.2 && drive > -0.2) { drive = 0; }
                 if (result.getTa() != 0) {
-                    averageTA += result.getTa();
+                    averageTA += (result.getTa() * 100);
                 }
                 /*telemetry.addData("tx", result.getTx());
                 telemetry.addData("ty", result.getTy());
@@ -188,33 +194,43 @@ public class vision_strafe extends OpMode
                 telemetry.addData("DRIVE", drive);
                 telemetry.addData("red detected", "here");*/
             }
+            telemetry.addData("result", result);
         }
-
         if (timer >= 20) {
-            averageTA = averageTA / 5;
-            telemetry.addData("average ta", averageTA);
+            averageTA = averageTA / timer;
+            telemetry.addData("timer has reached", timer);
             results = addX(results.length, results, averageTA);
             timer = 0;
-            // do drive calculations
+            /*if (averageTA < 0.4) {
+                drive = 0;
+                telemetry.addData("we", "here?");
+            }*/
+            if (averageTA > 20) {
+                drive = -(700 - averageTA) / 1000;
+            }
+            else {
+                drive = 0;
+            }
         }
         else {
-            telemetry.addData("timer", timer);
+            drive = 0;
         }
+        telemetry.addData("drive", drive);
+        //else {}
         // Tank Mode uses one stick to control each wheel.
         // - This requires no math, but it is hard to drive forward slowly and keep straight.
         // leftPower  = -gamepad1.left_stick_y ;
         // rightPower = -gamepad1.right_stick_y ;
 
         // Send calculated power to wheels
-        turn = 0;
         double frPower = drive - turn - strafe;
         double flPower = drive + turn + strafe;
         double brPower = drive - turn + strafe;
         double blPower = drive + turn - strafe;
-        if (frPower < 0.1 && frPower > -0.1) { frPower = 0; }
-        if (flPower < 0.1 && flPower > -0.1) { flPower = 0; }
-        if (brPower < 0.1 && brPower > -0.1) { brPower = 0; }
-        if (blPower < 0.1 && blPower > -0.1) { blPower = 0; }
+        if (frPower < 0.3 && frPower > -0.3) { frPower = 0; }
+        if (flPower < 0.3 && flPower > -0.3) { flPower = 0; }
+        if (brPower < 0.3 && brPower > -0.3) { brPower = 0; }
+        if (blPower < 0.3 && blPower > -0.3) { blPower = 0; }
         frontRight.setPower(frPower);
         frontLeft.setPower(flPower);
         backRight.setPower(brPower);

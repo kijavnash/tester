@@ -25,5 +25,12 @@ allprojects {
 }
 
 repositories {
+    maven { url "https://frcmaven.wpi.edu/artifactory/release/" }
     mavenCentral()
+}
+
+dependencies {
+    implementation "edu.wpi.first.ntcore:ntcore-java:2025.1.1"
+    implementation "edu.wpi.first.wpiutil:wpiutil-java:2025.1.1"
+    // Add ntcore-jni for all supported platforms for cross-platform applications
 }
